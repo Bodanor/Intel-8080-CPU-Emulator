@@ -1,10 +1,59 @@
 #include "8080_cpu.h"
 
+
+int parity(int x, int size)
+{
+	int parity = 0;
+
+	int i;
+	for (i = 0; i < size; i++)
+	{
+		parity += x & 1;
+		x = x >> 1;
+	}
+	return (parity % 2 == 0);
+}
+
+void updateFlags(Flags *flags, uint16_t res)
+{
+    flags->z = (res== 0);
+    flags->s = (0x80 == (res & 0x80));
+	flags->p = parity(res & 0xff, 8);
+	flags->ac = (res > 0x09);
+}
+
+void MVI(Registers *registers, uint8_t *reg, uint8_t data)
+{
+    *reg = data;
+    updateFlags(&registers->flags, (uint16_t)*reg);
+
+}
+void INR(Registers *registers, uint8_t *reg)
+{
+    *reg += 1;
+    updateFlags(&registers->flags, (uint16_t)*reg);
+}
+
+void DCR(Registers *registers, uint8_t *reg)
+{
+    *reg -= 1;
+    updateFlags(&registers->flags, (uint16_t)*reg);
+}
+void INX(uint8_t *register1, uint8_t *register2)
+{
+	(*register2)++;
+	//overflow
+	if (*register2 == 0)
+	{
+		(*register1)++;
+	}
+}
+
 void UnimplementedInstruction(Registers* registers)
 {
 	//pc will have advanced one, so undo that
 	printf ("Error: Unimplemented instruction\n");
-	registers->pc--;
+	//registers->pc--;
 	printf("\n");
 }
 
@@ -830,31 +879,37 @@ Registers *Init_8080(void)
 uint8_t Emulate8080(Registers *registers)
 {
     uint8_t *opcode = &registers->memory[registers->pc];
-
+    uint16_t tmp = 0;
     printf("%04x\t", registers->pc);
     Disas_8080_opcode(registers->memory, registers->pc);
+
+    registers->pc+=1;
 
     switch (*opcode)
     {
         case 0x00:
             break;
         case 0x01:
-            UnimplementedInstruction(registers);
+            registers->c = opcode[1];
+			registers->b = opcode[2];
+			registers->pc += 2;
             break;
         case 0x02:
-            UnimplementedInstruction(registers);
+            tmp = (registers->b << 8) | (registers->c);
+		    registers->memory[tmp] = registers->a;
             break;
         case 0x03:
-            UnimplementedInstruction(registers);
+            INX(&registers->b, &registers->c);
             break;
         case 0x04:
-            UnimplementedInstruction(registers);
+            INR(registers, &registers->b);
             break;
         case 0x05:
-            UnimplementedInstruction(registers);
+            DCR(registers, &registers->b);
             break;
         case 0x06:
-			UnimplementedInstruction(registers);
+            MVI(registers, &registers->b, opcode[1]);
+			registers->pc += 1;
 			break;
 		case 0x07:
 			UnimplementedInstruction(registers);
@@ -1581,6 +1636,8 @@ uint8_t Emulate8080(Registers *registers)
 			printf("Unknown Instruction: 0x%02x", *opcode);
 			break;
     }
+
+    return 0;
 
 }
 

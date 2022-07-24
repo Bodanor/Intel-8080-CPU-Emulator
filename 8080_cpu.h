@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 
 typedef struct flags_8080
 {
@@ -37,4 +38,5 @@ int Disas_8080_opcode(uint8_t*data, int pc);
 uint8_t Emulate8080(Registers *registers);
 uint8_t LoadROM(Registers *registers, uint8_t *filename, uint16_t offset);
 Registers *Init_8080(void); 
+
 #endif
