@@ -22,6 +22,12 @@ void updateFlags(Flags *flags, uint16_t res)
 	flags->ac = (res > 0x09);
 }
 
+void RLC(Registers *registers)
+{
+    uint8_t tmp = registers->a;
+    registers->a = tmp << 1 | tmp >> 7;
+    registers->flags.cy = ((tmp >> 7) > 0);
+}
 void MVI(Registers *registers, uint8_t *reg, uint8_t data)
 {
     *reg = data;
@@ -912,7 +918,7 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc += 1;
 			break;
 		case 0x07:
-			UnimplementedInstruction(registers);
+			RLC(registers);
 			break;
 		case 0x09:
 			UnimplementedInstruction(registers);
