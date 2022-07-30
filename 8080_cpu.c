@@ -22,6 +22,25 @@ void updateFlags(Flags *flags, uint16_t res)
 	flags->ac = (res > 0x09);
 }
 
+void LDAX(Registers *registers, uint8_t *register1, uint8_t *register2)
+{
+	registers->a = registers->memory[(*register1 << 8) | *register2];
+
+}
+void DAD(Registers *registers, uint8_t *register1, uint8_t *register2)
+{
+	uint16_t hl_pair = (registers->h << 8) | registers->l;
+	uint16_t tmp_pair = (*register1 << 8) | *register2;
+
+	uint16_t instruction_res = hl_pair + tmp_pair;
+
+	registers->flags.cy = ((instruction_res & 0xffff0000) > 0);
+
+	registers->h = (instruction_res & 0xff00) >> 8;
+	registers->l = (instruction_res & 0x00ff);
+
+}
+
 void RLC(Registers *registers)
 {
     uint8_t tmp = registers->a;
@@ -55,6 +74,16 @@ void INX(uint8_t *register1, uint8_t *register2)
 	}
 }
 
+void DCX(uint8_t *register1, uint8_t *register2)
+{
+	(*register2)--;
+	
+	if (*register2 == 0xff)
+	{
+		(*register1)--;
+	}
+	
+}
 void UnimplementedInstruction(Registers* registers)
 {
 	//pc will have advanced one, so undo that
@@ -921,13 +950,13 @@ uint8_t Emulate8080(Registers *registers)
 			RLC(registers);
 			break;
 		case 0x09:
-			UnimplementedInstruction(registers);
+			DAD(registers, &registers->b, &registers->c);
 			break;
 		case 0x0a:
-			UnimplementedInstruction(registers);
+			LDAX(registers, &registers->b, &registers->c);
 			break;
 		case 0x0b:
-			UnimplementedInstruction(registers);
+			DCX(&registers->b, &registers->c);
 			break;
 		case 0x0c:
 			UnimplementedInstruction(registers);
