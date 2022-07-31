@@ -14,12 +14,27 @@ int parity(int x, int size)
 	return (parity % 2 == 0);
 }
 
-void updateFlags(Flags *flags, uint16_t res)
+void ArithupdateFlags(Flags *flags, uint16_t res)
 {
     flags->z = (res== 0);
     flags->s = (0x80 == (res & 0x80));
 	flags->p = parity(res & 0xff, 8);
 	flags->ac = (res > 0x09);
+}
+
+void BcdArithFlags(Flags *flags, uint16_t res)
+{
+	flags->cy = (res > 0xff); //checks if result is greater than 0xff
+	flags->z = ((res & 0xff) == 0);
+	flags->s = (0x80 == (res & 0x80)); //res & 1000 0000
+	flags->p = parity(res & 0xff, 8);
+	flags->ac = (res > 0x09);
+}
+
+void LDA(Registers *registers, unsigned char *opcode)
+{
+	uint16_t address = (opcode[2] << 8) | (opcode[1]);
+	registers->a = registers->memory[address];
 }
 
 void LDAX(Registers *registers, uint16_t *reg)
@@ -38,6 +53,29 @@ void DAD(Registers *registers, uint16_t *reg)
 	registers->l = (dad_res & 0x00ff);
 }
 
+void DAA(Registers *registers)
+{
+	uint8_t fourLSB = ((registers->a << 4) >> 4);
+	if ((fourLSB > 0x09) || (registers->flags.ac == 1))
+	{
+		uint16_t resultLSB = fourLSB + 0x06;
+		registers->a = registers->a + 0x06;
+		BcdArithFlags(&registers->flags, resultLSB);
+	}
+
+	uint8_t fourMSB = (registers->a >> 4);
+	if ((fourMSB > 0x09) || (registers->flags.cy == 1))
+	{
+		uint16_t resultMSB = fourMSB + 0x06;
+		registers->a = registers->a + 0x06;
+		BcdArithFlags(&registers->flags, resultMSB);
+	}
+}
+
+void MOV(uint8_t *dst_reg, uint8_t *src_reg)
+{
+	*dst_reg = *src_reg;
+}
 void STAX(Registers *registers, uint16_t *reg)
 {
 	registers->memory[*reg] = registers->a;
@@ -48,22 +86,43 @@ void RLC(Registers *registers)
     registers->a = tmp << 1 | tmp >> 7;
     registers->flags.cy = ((tmp >> 7) > 0);
 }
+void RAL(Registers *registers)
+{
+	uint8_t temp = registers->a;
+	uint8_t msb = (registers->a >> 7);
+	registers->a = (temp << 1) | (registers->flags.cy);
+	registers->flags.cy = msb;
+}
+void RAR(Registers *registers)
+{
+	uint8_t temp = registers->a;
+	uint8_t msb = ((registers->a >> 7) << 7);
+	registers->a = (temp >> 1) | (msb);
+	registers->flags.cy = (temp << 7) >> 7;
+}
+void RRC(Registers *registers)
+{
+	uint8_t temp = registers->a;
+
+	registers->a = temp >> 1 | temp << 7;
+	registers->flags.cy = ((registers->a >> 7) > 0);
+}
 void MVI(Registers *registers, uint8_t *reg, uint8_t data)
 {
     *reg = data;
-    updateFlags(&registers->flags, (uint16_t)*reg);
+    ArithupdateFlags(&registers->flags, (uint16_t)*reg);
 
 }
 void INR(Registers *registers, uint8_t *reg)
 {
     *reg += 1;
-    updateFlags(&registers->flags, (uint16_t)*reg);
+    ArithupdateFlags(&registers->flags, (uint16_t)*reg);
 }
 
 void DCR(Registers *registers, uint8_t *reg)
 {
     *reg -= 1;
-    updateFlags(&registers->flags, (uint16_t)*reg);
+    ArithupdateFlags(&registers->flags, (uint16_t)*reg);
 }
 void INX(uint16_t *reg)
 {
@@ -78,6 +137,26 @@ void LXI(unsigned char *opcode, uint16_t *reg)
 {
 	*reg = opcode[2];
 	*(reg) = (*reg << 8) | opcode[1];
+}
+
+void LHLD(Registers *registers, unsigned char *opcode)
+{
+	uint16_t memLocation = (opcode[2] << 8) | opcode[1];
+
+	registers->hl = *(uint16_t*)(registers->memory + memLocation);
+}
+
+void STA(Registers *registers, unsigned char *opcode)
+{
+	uint16_t adress = (opcode[2] << 8) | opcode[1];
+	registers->memory[adress] = registers->a;
+}
+
+void SHLD(Registers *registers, unsigned char *opcode)
+{
+	uint16_t memLocation = (opcode[2] << 8) | opcode[1];
+
+	*(uint16_t*)(registers->memory + memLocation) = registers->hl;
 }
 void UnimplementedInstruction(Registers* registers)
 {
@@ -961,7 +1040,7 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x0f:
-			UnimplementedInstruction(registers);
+			RRC(registers);
 			break;
 		case 0x11:
 			LXI(opcode, &registers->de);
@@ -984,7 +1063,7 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x17:
-			UnimplementedInstruction(registers);
+			RAL(registers);
 			break;
 		case 0x19:
 			DAD(registers, &registers->de);
@@ -1006,16 +1085,18 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x1f:
-			UnimplementedInstruction(registers);
+			RAR(registers);
 			break;
 		case 0x20:
+			UnimplementedInstruction(registers);
 			break;
 		case 0x21:
 			LXI(opcode, &registers->hl);
 			registers->pc += 2;
 			break;
 		case 0x22:
-			UnimplementedInstruction(registers);
+			SHLD(registers, opcode);
+			registers->pc += 2;
 			break;
 		case 0x23:
 			INX(&registers->hl);
@@ -1031,13 +1112,14 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x27:
-			UnimplementedInstruction(registers);
+			DAA(registers);
 			break;
 		case 0x29:
 			DAD(registers, &registers->hl);
 			break;
 		case 0x2a:
-			UnimplementedInstruction(registers);
+			LHLD(registers, opcode);
+			registers->pc += 2;
 			break;
 		case 0x2b:
 			DCX(&registers->hl);
@@ -1053,7 +1135,7 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x2f:
-			UnimplementedInstruction(registers);
+			registers->a = ~(registers->a);
 			break;
 		case 0x30:
 			UnimplementedInstruction(registers);
@@ -1063,7 +1145,8 @@ uint8_t Emulate8080(Registers *registers)
 			registers->pc++;
 			break;
 		case 0x32:
-			UnimplementedInstruction(registers);
+			STA(registers, opcode);
+			registers->pc += 2;
 			break;
 		case 0x33:
 			INX(&registers->sp);
@@ -1078,76 +1161,78 @@ uint8_t Emulate8080(Registers *registers)
 			MVI(registers, &registers->memory[registers->hl], opcode[1]);
 			break;
 		case 0x37:
-			UnimplementedInstruction(registers);
+			registers->flags.cy = 1;
 			break;
 		case 0x39:
-			UnimplementedInstruction(registers);
+			DAD(registers, &registers->sp);
 			break;
 		case 0x3a:
-			UnimplementedInstruction(registers);
+			LDA(registers, opcode);
+			registers->pc += 2;
 			break;
 		case 0x3b:
-			UnimplementedInstruction(registers);
+			DCX(&registers->sp);
 			break;
 		case 0x3c:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->a);
 			break;
         case 0x3d:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->a);
 			break;
 		case 0x3e:
 			MVI(registers, &registers->a, opcode[1]);
+			registers->pc += 1;
 			break;
 		case 0x3f:
-			UnimplementedInstruction(registers);
+			registers->flags.cy = ~registers->flags.cy;
 			break;
 		case 0x40:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->b);
 			break;
 		case 0x41:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->c);
 			break;
 		case 0x42:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->d);
 			break;
 		case 0x43:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->e);
 			break;
 		case 0x44:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->h);
 			break;
 		case 0x45:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->l);
 			break;
 		case 0x46:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->memory[registers->hl]);
 			break;
 		case 0x47:
-			UnimplementedInstruction(registers);
+			MOV(&registers->b, &registers->a);
 			break;
 		case 0x48:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->b);
 			break;
 		case 0x49:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->c);
 			break;
 		case 0x4a:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->d);
 			break;
 		case 0x4b:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->e);
 			break;
 		case 0x4c:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->h);
 			break;
 		case 0x4d:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->l);
 			break;
 		case 0x4e:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->memory[registers->hl]);
 			break;
 		case 0x4f:
-			UnimplementedInstruction(registers);
+			MOV(&registers->c, &registers->a);
 			break;
 		case 0x50:
 			UnimplementedInstruction(registers);
