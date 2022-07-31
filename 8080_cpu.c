@@ -22,25 +22,26 @@ void updateFlags(Flags *flags, uint16_t res)
 	flags->ac = (res > 0x09);
 }
 
-void LDAX(Registers *registers, uint8_t *register1, uint8_t *register2)
+void LDAX(Registers *registers, uint16_t *reg)
 {
-	registers->a = registers->memory[(*register1 << 8) | *register2];
+	registers->a = registers->memory[*reg];
 
 }
-void DAD(Registers *registers, uint8_t *register1, uint8_t *register2)
+void DAD(Registers *registers, uint16_t *reg)
 {
-	uint16_t hl_pair = (registers->h << 8) | registers->l;
-	uint16_t tmp_pair = (*register1 << 8) | *register2;
 
-	uint16_t instruction_res = hl_pair + tmp_pair;
+	uint16_t dad_res = *reg + registers->hl;
 
-	registers->flags.cy = ((instruction_res & 0xffff0000) > 0);
+	registers->flags.cy = ((dad_res & 0xffff0000) > 0);
 
-	registers->h = (instruction_res & 0xff00) >> 8;
-	registers->l = (instruction_res & 0x00ff);
-
+	registers->h = (dad_res & 0xff00) >> 8;
+	registers->l = (dad_res & 0x00ff);
 }
 
+void STAX(Registers *registers, uint16_t *reg)
+{
+	registers->memory[*reg] = registers->a;
+}
 void RLC(Registers *registers)
 {
     uint8_t tmp = registers->a;
@@ -83,6 +84,11 @@ void DCX(uint8_t *register1, uint8_t *register2)
 		(*register1)--;
 	}
 	
+}
+void LXI(unsigned char *opcode, uint16_t *reg)
+{
+	*reg = opcode[2];
+	*(reg) = (*reg << 8) | opcode[1];
 }
 void UnimplementedInstruction(Registers* registers)
 {
@@ -925,13 +931,10 @@ uint8_t Emulate8080(Registers *registers)
         case 0x00:
             break;
         case 0x01:
-            registers->c = opcode[1];
-			registers->b = opcode[2];
-			registers->pc += 2;
+            LXI(opcode, &registers->bc);
             break;
         case 0x02:
-            tmp = (registers->b << 8) | (registers->c);
-		    registers->memory[tmp] = registers->a;
+            STAX(registers, &registers->bc);
             break;
         case 0x03:
             INX(&registers->b, &registers->c);
@@ -950,10 +953,10 @@ uint8_t Emulate8080(Registers *registers)
 			RLC(registers);
 			break;
 		case 0x09:
-			DAD(registers, &registers->b, &registers->c);
+			DAD(registers, &registers->bc);
 			break;
 		case 0x0a:
-			LDAX(registers, &registers->b, &registers->c);
+			LDAX(registers, &registers->bc);
 			break;
 		case 0x0b:
 			DCX(&registers->b, &registers->c);
