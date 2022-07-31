@@ -65,25 +65,14 @@ void DCR(Registers *registers, uint8_t *reg)
     *reg -= 1;
     updateFlags(&registers->flags, (uint16_t)*reg);
 }
-void INX(uint8_t *register1, uint8_t *register2)
+void INX(uint16_t *reg)
 {
-	(*register2)++;
-	//overflow
-	if (*register2 == 0)
-	{
-		(*register1)++;
-	}
+	(*reg)++;
 }
 
-void DCX(uint8_t *register1, uint8_t *register2)
+void DCX(uint16_t *reg)
 {
-	(*register2)--;
-	
-	if (*register2 == 0xff)
-	{
-		(*register1)--;
-	}
-	
+	(*reg)--;
 }
 void LXI(unsigned char *opcode, uint16_t *reg)
 {
@@ -937,7 +926,7 @@ uint8_t Emulate8080(Registers *registers)
             STAX(registers, &registers->bc);
             break;
         case 0x03:
-            INX(&registers->b, &registers->c);
+            INX(&registers->bc);
             break;
         case 0x04:
             INR(registers, &registers->b);
@@ -959,10 +948,10 @@ uint8_t Emulate8080(Registers *registers)
 			LDAX(registers, &registers->bc);
 			break;
 		case 0x0b:
-			DCX(&registers->b, &registers->c);
+			DCX(&registers->bc);
 			break;
 		case 0x0c:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->c);
 			break;
 		case 0x0d:
 			UnimplementedInstruction(registers);
