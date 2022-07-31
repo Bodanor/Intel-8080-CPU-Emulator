@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     }
     printf("Data loaded successfully!\n");
     printf("Proceeding to dissasembly code...\n\n");
-    printf("%ld", rom_bytes);
+    
     while (registers->pc != rom_bytes && !done && getchar())
     {
         done = Emulate8080(registers);
