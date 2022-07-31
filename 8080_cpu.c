@@ -909,7 +909,6 @@ Registers *Init_8080(void)
 uint8_t Emulate8080(Registers *registers)
 {
     uint8_t *opcode = &registers->memory[registers->pc];
-    uint16_t tmp = 0;
     printf("%04x\t", registers->pc);
     Disas_8080_opcode(registers->memory, registers->pc);
 
@@ -921,6 +920,7 @@ uint8_t Emulate8080(Registers *registers)
             break;
         case 0x01:
             LXI(opcode, &registers->bc);
+			registers->pc += 2;
             break;
         case 0x02:
             STAX(registers, &registers->bc);
@@ -936,7 +936,7 @@ uint8_t Emulate8080(Registers *registers)
             break;
         case 0x06:
             MVI(registers, &registers->b, opcode[1]);
-			registers->pc += 1;
+			registers->pc++;
 			break;
 		case 0x07:
 			RLC(registers);
@@ -954,97 +954,103 @@ uint8_t Emulate8080(Registers *registers)
 			INR(registers, &registers->c);
 			break;
 		case 0x0d:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->c);
 			break;
 		case 0x0e:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->c, opcode[1]);
+			registers->pc++;
 			break;
 		case 0x0f:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x11:
-			UnimplementedInstruction(registers);
+			LXI(opcode, &registers->de);
+			registers->pc += 2;
 			break;
 		case 0x12:
-			UnimplementedInstruction(registers);
+			STAX(registers, &registers->de);
 			break;
 		case 0x13:
-			UnimplementedInstruction(registers);
+			INX(&registers->de);
 			break;
 		case 0x14:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->d);
 			break;
 		case 0x15:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->d);
 			break;
 		case 0x16:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->d, opcode[1]);
+			registers->pc++;
 			break;
 		case 0x17:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x19:
-			UnimplementedInstruction(registers);
+			DAD(registers, &registers->de);
 			break;
 		case 0x1a:
-			UnimplementedInstruction(registers);
+			LDAX(registers, &registers->de);
 			break;
 		case 0x1b:
-			UnimplementedInstruction(registers);
+			DCX(&registers->de);
 			break;
 		case 0x1c:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->e);
 			break;
 		case 0x1d:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->e);
 			break;
 		case 0x1e:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->e, opcode[1]);
+			registers->pc++;
 			break;
 		case 0x1f:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x20:
-			UnimplementedInstruction(registers);
 			break;
 		case 0x21:
-			UnimplementedInstruction(registers);
+			LXI(opcode, &registers->hl);
+			registers->pc += 2;
 			break;
 		case 0x22:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x23:
-			UnimplementedInstruction(registers);
+			INX(&registers->hl);
 			break;
 		case 0x24:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->h);
 			break;
 		case 0x25:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->h);
 			break;
 		case 0x26:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->h, opcode[1]);
+			registers->pc++;
 			break;
 		case 0x27:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x29:
-			UnimplementedInstruction(registers);
+			DAD(registers, &registers->hl);
 			break;
 		case 0x2a:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x2b:
-			UnimplementedInstruction(registers);
+			DCX(&registers->hl);
 			break;
 		case 0x2c:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->l);
 			break;
 		case 0x2d:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->l);
 			break;
 		case 0x2e:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->l, opcode[1]);
+			registers->pc++;
 			break;
 		case 0x2f:
 			UnimplementedInstruction(registers);
@@ -1053,22 +1059,23 @@ uint8_t Emulate8080(Registers *registers)
 			UnimplementedInstruction(registers);
 			break;
 		case 0x31:
-			UnimplementedInstruction(registers);
+			LXI(opcode, &registers->sp);
+			registers->pc++;
 			break;
 		case 0x32:
 			UnimplementedInstruction(registers);
 			break;
 		case 0x33:
-			UnimplementedInstruction(registers);
+			INX(&registers->sp);
 			break;
 		case 0x34:
-			UnimplementedInstruction(registers);
+			INR(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x35:
-			UnimplementedInstruction(registers);
+			DCR(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x36:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->memory[registers->hl], opcode[1]);
 			break;
 		case 0x37:
 			UnimplementedInstruction(registers);
@@ -1089,7 +1096,7 @@ uint8_t Emulate8080(Registers *registers)
 			UnimplementedInstruction(registers);
 			break;
 		case 0x3e:
-			UnimplementedInstruction(registers);
+			MVI(registers, &registers->a, opcode[1]);
 			break;
 		case 0x3f:
 			UnimplementedInstruction(registers);
@@ -1669,7 +1676,7 @@ uint8_t Emulate8080(Registers *registers)
 }
 
 
-uint8_t LoadROM(Registers *registers, uint8_t *filename, uint16_t offset)
+long LoadROM(Registers *registers, const char *filename, uint16_t offset)
 {
     long file_bytes = 0;
     FILE *fp = NULL;
@@ -1684,6 +1691,16 @@ uint8_t LoadROM(Registers *registers, uint8_t *filename, uint16_t offset)
     fread(registers->memory + offset, file_bytes, 1, fp);
     fclose(fp);
 
-    return 0;
+    return file_bytes;
+}
 
+void showCPUDebugInfos(Registers *registers)
+{
+	printf("\n<REG> A : 0x%X (%d)\n", registers->a, registers->a);
+	printf("<REG> BC : 0x%X (%d)\t\tB : 0x%X (%d)\t\tC : 0x%X (%d)\n", registers->bc, registers->bc, registers->b, registers->b, registers->c, registers->c);
+	printf("<REG> DE : 0x%X (%d)\t\tD : 0x%X (%d)\t\tE : 0x%X (%d)\n", registers->de, registers->de, registers->d, registers->d, registers->e, registers->e);
+	printf("<REG> HL : 0x%X (%d)\t\tH : 0x%X (%d)\t\tL : 0x%X (%d)\n", registers->hl, registers->hl, registers->h, registers->h, registers->l, registers->l);
+	printf("<REG> SP : 0x%X (%d)\n", registers->sp, registers->sp);
+	printf("<REG> PC : 0x%X (%d)\n", registers->pc, registers->pc);
+	printf("<FLAG> AC : 0x%X (%d)\tCY : 0x%X (%d)\tP : 0x%X (%d)\tS : 0x%X (%d)\tZ : 0x%X (%d)\n\n", registers->flags.ac, registers->flags.ac, registers->flags.cy,registers->flags.cy, registers->flags.p, registers->flags.p, registers->flags.s, registers->flags.s, registers->flags.z, registers->flags.z);
 }
