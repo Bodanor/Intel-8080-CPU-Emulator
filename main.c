@@ -7,6 +7,7 @@ int main(int argc, char **argv)
 {
     Registers *registers = NULL;
     uint8_t done = 0;
+    long rom_bytes = 0;
 
     printf("Initialization of 8080 CPU...\n");
     registers = Init_8080();
@@ -28,17 +29,18 @@ int main(int argc, char **argv)
 
     printf("Initialization success !\n");
     printf("Loading data into memory...\n");
-    if(LoadROM(registers, argv[1], 0) != 0)
+    if((rom_bytes = LoadROM(registers, argv[1], 0)) < 0)
     {
         printf("File could no be opened !\n");
         return -1;
     }
     printf("Data loaded successfully!\n");
     printf("Proceeding to dissasembly code...\n\n");
-
-    while (!done)
+    printf("%ld", rom_bytes);
+    while (registers->pc != rom_bytes && !done)
     {
         done = Emulate8080(registers);
+        showCPUDebugInfos(registers);
     }
     
 }
