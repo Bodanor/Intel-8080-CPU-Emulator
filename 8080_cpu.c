@@ -1235,148 +1235,148 @@ uint8_t Emulate8080(Registers *registers)
 			MOV(&registers->c, &registers->a);
 			break;
 		case 0x50:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->b);
 			break;
 		case 0x51:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->c);
 			break;
 		case 0x52:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->d);
 			break;
 		case 0x53:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->e);
 			break;
 		case 0x54:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->h);
 			break;
 		case 0x55:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->l);
 			break;
 		case 0x56:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->memory[registers->hl]);
 			break;
 		case 0x57:
-			UnimplementedInstruction(registers);
+			MOV(&registers->d, &registers->a);
 			break;
 		case 0x58:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->b);
 			break;
 		case 0x59:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->c);
 			break;
 		case 0x5a:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->d);
 			break;
 		case 0x5b:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->e);
 			break;
 		case 0x5c:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->h);
 			break;
 		case 0x5d:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->l);
 			break;
 		case 0x5e:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->memory[registers->hl]);
 			break;
 		case 0x5f:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->a);
 			break;
 		case 0x60:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->b);
 			break;
 		case 0x61:
-			UnimplementedInstruction(registers);
+			MOV(&registers->h, &registers->b);
 			break;
 		case 0x62:
-			UnimplementedInstruction(registers);
+			MOV(&registers->h, &registers->d);
 			break;
 		case 0x63:
-			UnimplementedInstruction(registers);
+			MOV(&registers->h, &registers->e);
 			break;
 		case 0x64:
-			UnimplementedInstruction(registers);
+			MOV(&registers->h, &registers->h);
 			break;
 		case 0x65:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->l);
 			break;
 		case 0x66:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->memory[registers->hl]);
 			break;
 		case 0x67:
-			UnimplementedInstruction(registers);
+			MOV(&registers->e, &registers->a);
 			break;
 		case 0x68:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->b);
 			break;
 		case 0x69:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->c);
 			break;
 		case 0x6a:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->d);
 			break;
 		case 0x6b:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->e);
 			break;
 		case 0x6c:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->h);
 			break;
 		case 0x6d:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->l);
 			break;
 		case 0x6e:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->memory[registers->hl]);
 			break;
 		case 0x6f:
-			UnimplementedInstruction(registers);
+			MOV(&registers->l, &registers->a);
 			break;
 		case 0x70:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->b);
 			break;
 		case 0x71:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->c);
 			break;
 		case 0x72:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->d);
 			break;
 		case 0x73:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->e);
 			break;
 		case 0x74:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->h);
 			break;
 		case 0x75:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->l);
 			break;
 		case 0x76:
-			UnimplementedInstruction(registers);
+			exit(0);
 			break;
 		case 0x77:
-			UnimplementedInstruction(registers);
+			MOV(&registers->memory[registers->hl], &registers->a);
 			break;
 		case 0x78:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->b);
 			break;
 		case 0x79:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->c);
 			break;
 		case 0x7a:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->d);
 			break;
 		case 0x7b:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->e);
 			break;
 		case 0x7c:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->h);
 			break;
 		case 0x7d:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->l);
 			break;
 		case 0x7e:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->memory[registers->hl]);
 			break;
 		case 0x7f:
-			UnimplementedInstruction(registers);
+			MOV(&registers->a, &registers->a);
 			break;
 		case 0x80:
 			UnimplementedInstruction(registers);
