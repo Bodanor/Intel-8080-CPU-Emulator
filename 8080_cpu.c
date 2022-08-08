@@ -136,7 +136,7 @@ void DCX(uint16_t *reg)
 void LXI(unsigned char *opcode, uint16_t *reg)
 {
 	*reg = opcode[2];
-	*(reg) = (*reg << 8) | opcode[1];
+	*reg = (*reg << 8) | opcode[1];
 }
 
 void LHLD(Registers *registers, unsigned char *opcode)
@@ -197,6 +197,114 @@ void CALL(Registers *registers, unsigned char *opcode)
 void JMP(Registers *registers, unsigned char *opcode)
 {
 	registers->pc = (opcode[2] << 8) | (opcode[1]);
+}
+
+void ANA(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a & (uint16_t)*reg;
+	BcdArithFlags(&registers->flags, res);
+	registers->flags.cy = 0;
+	registers->a = res;
+}
+void XRA(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a ^ (uint16_t)*reg;
+	BcdArithFlags(&registers->flags, res);
+	registers->flags.cy = 0;
+	registers->flags.ac = 0;
+	registers->a = res;
+}
+
+void ORA(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a | (uint16_t)*reg;
+	BcdArithFlags(&registers->flags, res);
+	registers->flags.cy = 0;
+	registers->flags.ac = 0;
+	registers->a = res;
+}
+
+void CMP(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = registers->a - *reg;
+	registers->flags.z = (res == 0);
+	registers->flags.s = (0x80 == (res & 0x80));
+	registers->flags.p = parity(res, 8);
+	registers->flags.cy = (registers->a < *reg);
+}
+
+void RET(Registers *registers)
+{
+	registers->pc = (registers->memory[registers->sp + 1]) << 8 | (registers->memory[registers->sp]);
+	registers->sp += 2;
+}
+
+void POP(Registers *registers, uint16_t *reg)
+{
+
+	*reg = registers->memory[registers->sp + 1];
+	*reg = (*reg << 8) | registers->memory[registers->sp];
+
+	registers->sp += 2;
+}
+
+void PUSH(Registers *registers, uint16_t *reg)
+{
+	registers->memory[registers->sp - 1] = (uint8_t)(*reg & 0xff00);
+	registers->memory[registers->sp - 2] = (uint8_t)(*reg & 0x00ff);
+
+	registers->sp -= 2;
+}
+
+void PUSH_PSW(Registers *registers)
+{
+
+	registers->memory[registers->sp - 2] = (registers->flags.cy & 0x01) | 	//0th position
+								   (0x02) |				   	//1st
+								   (registers->flags.cy << 2) |   	//2nd
+								   (registers->flags.ac << 4) |   	//4th
+								   (registers->flags.z << 6) |		//6th
+								   (registers->flags.s << 7) |		//7th
+								   (0x00);				   	//0 in other positions
+
+	registers->memory[registers->sp - 1] = registers->a;
+	registers->sp -= 2;
+}
+
+void POP_PSW(Registers *registers)
+{
+	uint8_t PSW = registers->memory[registers->sp];
+
+	// carry flag (CY) <- ((SP))_0
+	registers->flags.cy = ((PSW & 0x1) != 0);
+
+	// parity flag (P) <- ((SP))_2
+	registers->flags.p = ((PSW & 0x4) != 0);
+
+	// auxiliary flag (AC) <- ((SP))_4
+	registers->flags.ac = ((PSW & 0x10) != 0);
+
+	// zero flag (Z) <- ((SP))_6
+	registers->flags.z = ((PSW & 0x40) != 0);
+
+	// sign flag (S) <- ((SP))_7
+	registers->flags.s = ((PSW & 0x80) != 0);
+
+	registers->a = registers->memory[registers->sp + 1];
+	registers->sp += 2;
+}
+void XCHG(Registers *registers)
+{
+	uint16_t tmp = registers->de;
+
+	registers->de = registers->hl;
+	registers->hl = tmp;
+}
+
+void XTHL(Registers *registers)
+{
+	registers->l = registers->memory[registers->sp];
+	registers->h = registers->memory[registers->sp + 1];
 }
 
 void UnimplementedInstruction(Registers* registers)
@@ -1022,18 +1130,19 @@ Registers *Init_8080(void)
 
         return registers;
     }
+	registers->interrupts = 1;
     return NULL;
 
 }
 
 uint8_t Emulate8080(Registers *registers)
 {
+	unsigned char tmp[3] = {0}; 
     uint8_t *opcode = &registers->memory[registers->pc];
     printf("%04x\t", registers->pc);
     Disas_8080_opcode(registers->memory, registers->pc);
 
     registers->pc+=1;
-
     switch (*opcode)
     {
         case 0x00:
@@ -1516,279 +1625,357 @@ uint8_t Emulate8080(Registers *registers)
 			SBB(registers, &registers->a);
 			break;
 		case 0xa0:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->b);
 			break;
 		case 0xa1:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->c);
 			break;
 		case 0xa2:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->d);
 			break;
 		case 0xa3:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->e);
 			break;
 		case 0xa4:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->h);
 			break;
 		case 0xa5:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->l);
 			break;
 		case 0xa6:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->memory[registers->hl]);
 			break;
 		case 0xa7:
-			UnimplementedInstruction(registers);
+			ANA(registers, &registers->a);
 			break;
 		case 0xa8:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->b);
 			break;
 		case 0xa9:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->c);
 			break;
 		case 0xaa:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->d);
 			break;
 		case 0xab:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->e);
 			break;
 		case 0xac:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->h);
 			break;
 		case 0xad:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->l);
 			break;
 		case 0xae:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->memory[registers->hl]);
 			break;
 		case 0xaf:
-			UnimplementedInstruction(registers);
+			XRA(registers, &registers->a);
 			break;
 		case 0xb0:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->b);
 			break;
 		case 0xb1:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->c);
 			break;
 		case 0xb2:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->d);
 			break;
 		case 0xb3:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->e);
 			break;
 		case 0xb4:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->h);
 			break;
 		case 0xb5:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->l);
 			break;
 		case 0xb6:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->memory[registers->hl]);
 			break;
 		case 0xb7:
-			UnimplementedInstruction(registers);
+			ORA(registers, &registers->a);
 			break;
 		case 0xb8:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->b);
 			break;
 		case 0xb9:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->c);
 			break;
 		case 0xba:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->d);
 			break;
 		case 0xbb:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->e);
 			break;
 		case 0xbc:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->h);
 			break;
 		case 0xbd:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->l);
 			break;
 		case 0xbe:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->memory[registers->hl]);
 			break;
 		case 0xbf:
-			UnimplementedInstruction(registers);
+			CMP(registers, &registers->a);
 			break;
 		case 0xc0:
-			UnimplementedInstruction(registers);
+			if (registers->flags.z == 0)
+				RET(registers);
+
 			break;
 		case 0xc1:
-			UnimplementedInstruction(registers);
+			POP(registers, &registers->bc);
 			break;
 		case 0xc2:
-			UnimplementedInstruction(registers);
+			if (registers->flags.z == 0)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xc3:
 			JMP(registers, opcode);
 			break;
 		case 0xc4:
-			UnimplementedInstruction(registers);
+			if (registers->flags.z == 0)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
+
 			break;
 		case 0xc5:
-			UnimplementedInstruction(registers);
+			PUSH(registers, &registers->bc);
 			break;
 		case 0xc6:
-			UnimplementedInstruction(registers);
+			ADD(registers, &opcode[1]);
+			registers->pc += 2;
 			break;
 		case 0xc7:
-			UnimplementedInstruction(registers);
+			tmp[1] = 0;
+			tmp[2] = 0;
+			CALL(registers, 0x0);
 			break;
 		case 0xc8:
-			UnimplementedInstruction(registers);
+			if (registers->flags.z == 1)
+				RET(registers);
 			break;
 		case 0xc9:
-			UnimplementedInstruction(registers);
+			RET(registers);
 			break;
 		case 0xca:
-			UnimplementedInstruction(registers);
+			if (registers->flags.z == 1)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xcc:
+			if (registers->flags.z == 1)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xcd:
 			CALL(registers, opcode);
 			break;
 		case 0xce:
-			UnimplementedInstruction(registers);
+			ADC(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xcf:
-			UnimplementedInstruction(registers);
+			tmp[1] = 8;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xd0:
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 0)
+				RET(registers);
 			break;
 		case 0xd1:
-			UnimplementedInstruction(registers);
+			POP(registers, &registers->de);
 			break;
 		case 0xd2:
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 0)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xd3:
-			UnimplementedInstruction(registers);
 			break;
 		case 0xd4:
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 0)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xd5:
-			UnimplementedInstruction(registers);
+			PUSH(registers, &registers->de);
 			break;
 		case 0xd6:
-			UnimplementedInstruction(registers);
+			SUB(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xd7:
-			UnimplementedInstruction(registers);
+			tmp[1] = 16;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xd8:
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 1)
+				RET(registers);
 			break;
 		case 0xda: 
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 1)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xdb:
-			UnimplementedInstruction(registers);
-			;
 			break;
 		case 0xdc:
-			UnimplementedInstruction(registers);
+			if (registers->flags.cy == 1)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xde:
-			UnimplementedInstruction(registers);
+			SBB(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xdf:
-			UnimplementedInstruction(registers);
+			tmp[1] = 24;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xe0:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 0)
+				RET(registers);
 			break;
 		case 0xe1:
-			UnimplementedInstruction(registers);
+			POP(registers, &registers->hl);
 			break;
 		case 0xe2:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 0)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xe3:
-			UnimplementedInstruction(registers);
+			XTHL(registers);
 			break;
 		case 0xe4:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 0)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xe5:
-			UnimplementedInstruction(registers);
+			PUSH(registers, &registers->hl);
 			break;
 		case 0xe6:
-			UnimplementedInstruction(registers);
-			;
+			ANA(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xe7:
-			UnimplementedInstruction(registers);
+			tmp[1] = 32;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xe8:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 1)
+				RET(registers);
 			break;
 		case 0xe9:
-			UnimplementedInstruction(registers);
+			registers->pc = registers->hl;
 			break;
 		case 0xea:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 1)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xeb:
-			UnimplementedInstruction(registers);
+			XCHG(registers);
 			break;
 		case 0xec:
-			UnimplementedInstruction(registers);
+			if (registers->flags.p == 1)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xee:
-			UnimplementedInstruction(registers);
-			;
+			XRA(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xef:
-			UnimplementedInstruction(registers);
+			tmp[1] = 40;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xf0:
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 0)
+				RET(registers);
 			break;
 		case 0xf1:
-			UnimplementedInstruction(registers);
+			POP_PSW(registers);
 			break;
 		case 0xf2:
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 0)
+				JMP(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xf3:
-			UnimplementedInstruction(registers);
+			registers->interrupts = 0;
 			break;
 		case 0xf4: 
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 0)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xf5:
-			UnimplementedInstruction(registers);
+			PUSH_PSW(registers);
 			break;
 		case 0xf6:
-			UnimplementedInstruction(registers);
+			ORA(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xf7:
-			UnimplementedInstruction(registers);
+			tmp[1] = 48;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 		case 0xf8:
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 1)
+				RET(registers);
 			break;
 		case 0xf9:
-			UnimplementedInstruction(registers);
+			registers->sp = registers->hl;
 			break;
 		case 0xfa:
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 1)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xfb:
-			UnimplementedInstruction(registers);
+			registers->interrupts = 1;
 			break;
 		case 0xfc:
-			UnimplementedInstruction(registers);
+			if (registers->flags.s == 1)
+				CALL(registers, opcode);
+			else
+				registers->pc += 2;
 			break;
 		case 0xfe:
-			UnimplementedInstruction(registers);
+			CMP(registers, &opcode[1]);
+			registers->pc++;
 			break;
 		case 0xff:
-			UnimplementedInstruction(registers);
+			tmp[1] = 56;
+			tmp[2] = 0;
+			CALL(registers, tmp);
 			break;
 
 		default:

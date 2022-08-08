@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/main",
-            "args": ["/home/liwinux/Downloads/invaders.h"],
+            "args": ["/home/liwinux/Downloads/invaders"],
             "stopAtEntry": true,
             "cwd": "${fileDirname}",
             "environment": [],

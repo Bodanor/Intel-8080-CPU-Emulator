@@ -48,6 +48,7 @@ typedef struct registers_8080
         uint16_t hl;
     };
 
+    uint8_t interrupts;
     uint16_t sp;
     uint16_t pc;
     uint8_t *memory;
