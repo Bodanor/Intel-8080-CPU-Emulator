@@ -158,6 +158,47 @@ void SHLD(Registers *registers, unsigned char *opcode)
 
 	*(uint16_t*)(registers->memory + memLocation) = registers->hl;
 }
+
+void ADD(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a + (uint16_t)*reg;
+	BcdArithFlags(&registers->flags, res);
+	registers->a = res & 0xff;
+
+}
+void ADC(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a + (uint16_t)*reg + (uint16_t)registers->flags.cy;
+	BcdArithFlags(&registers->flags, res);
+	registers->a = res & 0xff;
+}
+void SBB(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a - (uint16_t)*reg - (uint16_t)registers->flags.cy;
+	BcdArithFlags(&registers->flags, res);
+	registers->a = res & 0xff;
+}
+
+void SUB(Registers *registers, uint8_t *reg)
+{
+	uint16_t res = (uint16_t)registers->a - (uint16_t)*reg;
+	BcdArithFlags(&registers->flags, res);
+	registers->a = res & 0xff;
+}
+
+void CALL(Registers *registers, unsigned char *opcode)
+{
+	uint16_t ret = registers->pc + 2;
+	registers->memory[registers->sp - 1] = (ret >> 8) & 0xff;
+	registers->memory[registers->sp - 2] = (ret & 0xff);
+	registers->sp = registers->sp - 2;
+	registers->pc = (opcode[2] << 8) | opcode[1];
+}
+void JMP(Registers *registers, unsigned char *opcode)
+{
+	registers->pc = (opcode[2] << 8) | (opcode[1]);
+}
+
 void UnimplementedInstruction(Registers* registers)
 {
 	//pc will have advanced one, so undo that
@@ -1379,100 +1420,100 @@ uint8_t Emulate8080(Registers *registers)
 			MOV(&registers->a, &registers->a);
 			break;
 		case 0x80:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->b);
 			break;
 		case 0x81:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->c);
 			break;
 		case 0x82:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->d);
 			break;
 		case 0x83:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->e);
 			break;
 		case 0x84:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->h);
 			break;
 		case 0x85:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->l);
 			break;
 		case 0x86:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x87:
-			UnimplementedInstruction(registers);
+			ADD(registers, &registers->a);
 			break;
 		case 0x88:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->b);
 			break;
 		case 0x89:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->c);
 			break;
 		case 0x8a:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->d);
 			break;
 		case 0x8b:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->e);
 			break;
 		case 0x8c:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->h);
 			break;
 		case 0x8d:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->l);
 			break;
 		case 0x8e:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x8f:
-			UnimplementedInstruction(registers);
+			ADC(registers, &registers->a);
 			break;
 		case 0x90:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->b);
 			break;
 		case 0x91:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->c);
 			break;
 		case 0x92:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->d);
 			break;
 		case 0x93:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->e);
 			break;
 		case 0x94:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->h);
 			break;
 		case 0x95:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->l);
 			break;
 		case 0x96:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x97:
-			UnimplementedInstruction(registers);
+			SUB(registers, &registers->a);
 			break;
 		case 0x98:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->b);
 			break;
 		case 0x99:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->c);
 			break;
 		case 0x9a:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->d);
 			break;
 		case 0x9b:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->e);
 			break;
 		case 0x9c:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->h);
 			break;
 		case 0x9d:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->l);
 			break;
 		case 0x9e:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->memory[registers->hl]);
 			break;
 		case 0x9f:
-			UnimplementedInstruction(registers);
+			SBB(registers, &registers->a);
 			break;
 		case 0xa0:
 			UnimplementedInstruction(registers);
@@ -1580,7 +1621,7 @@ uint8_t Emulate8080(Registers *registers)
 			UnimplementedInstruction(registers);
 			break;
 		case 0xc3:
-			UnimplementedInstruction(registers);
+			JMP(registers, opcode);
 			break;
 		case 0xc4:
 			UnimplementedInstruction(registers);
@@ -1604,10 +1645,9 @@ uint8_t Emulate8080(Registers *registers)
 			UnimplementedInstruction(registers);
 			break;
 		case 0xcc:
-			UnimplementedInstruction(registers);
 			break;
 		case 0xcd:
-			UnimplementedInstruction(registers);
+			CALL(registers, opcode);
 			break;
 		case 0xce:
 			UnimplementedInstruction(registers);
