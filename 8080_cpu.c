@@ -1124,7 +1124,7 @@ Registers *Init_8080(void)
     Registers *registers = (Registers*)calloc(1,sizeof(Registers));
     if (registers != NULL)
     {
-        registers->memory = (uint8_t*)malloc(sizeof(uint8_t)*0x1000); // 16K memory
+        registers->memory = (uint8_t*)malloc(sizeof(uint8_t)*0x10000); // 16K memory
         if (registers->memory == NULL)
             return NULL;
 
