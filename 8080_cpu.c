@@ -1,5 +1,6 @@
 #include "8080_cpu.h"
 
+extern int show_debug;
 
 int parity(int x, int size)
 {
@@ -45,12 +46,8 @@ void LDAX(Registers *registers, uint16_t *reg)
 void DAD(Registers *registers, uint16_t *reg)
 {
 
-	uint16_t dad_res = *reg + registers->hl;
-
-	registers->flags.cy = ((dad_res & 0xffff0000) > 0);
-
-	registers->h = (dad_res & 0xff00) >> 8;
-	registers->l = (dad_res & 0x00ff);
+	registers->flags.cy = ((registers->hl + *reg) >> 16) & 1;
+  	registers->hl = registers->hl + *reg;
 }
 
 void DAA(Registers *registers)
@@ -250,8 +247,8 @@ void POP(Registers *registers, uint16_t *reg)
 
 void PUSH(Registers *registers, uint16_t *reg)
 {
-	registers->memory[registers->sp - 1] = (uint8_t)(*reg & 0xff00);
-	registers->memory[registers->sp - 2] = (uint8_t)(*reg & 0x00ff);
+	registers->memory[registers->sp - 1] = (uint8_t)(*reg >> 8);
+	registers->memory[registers->sp - 2] = (uint8_t)(*reg);
 
 	registers->sp -= 2;
 }
@@ -259,39 +256,34 @@ void PUSH(Registers *registers, uint16_t *reg)
 void PUSH_PSW(Registers *registers)
 {
 
-	registers->memory[registers->sp - 2] = (registers->flags.cy & 0x01) | 	//0th position
-								   (0x02) |				   	//1st
-								   (registers->flags.cy << 2) |   	//2nd
-								   (registers->flags.ac << 4) |   	//4th
-								   (registers->flags.z << 6) |		//6th
-								   (registers->flags.s << 7) |		//7th
-								   (0x00);				   	//0 in other positions
+	uint16_t psw = 0;
+	psw |= registers->flags.s << 7;
+	psw |= registers->flags.z << 6;
+	psw |= registers->flags.ac << 4;
+	psw |= registers->flags.p << 2;
+	psw |= 1 << 1; // bit 1 is always 1
+	psw |= registers->flags.cy << 0;
 
-	registers->memory[registers->sp - 1] = registers->a;
-	registers->sp -= 2;
+	psw = registers->a << 8 | psw;
+	PUSH(registers, (uint16_t*)&psw);
+	
 }
 
 void POP_PSW(Registers *registers)
 {
-	uint8_t PSW = registers->memory[registers->sp];
+	uint16_t af;
+	uint8_t psw;
 
-	// carry flag (CY) <- ((SP))_0
-	registers->flags.cy = ((PSW & 0x1) != 0);
+	POP(registers, &af);
+	registers->a = af >> 8;
+	psw = af & 0xFF;
 
-	// parity flag (P) <- ((SP))_2
-	registers->flags.p = ((PSW & 0x4) != 0);
-
-	// auxiliary flag (AC) <- ((SP))_4
-	registers->flags.ac = ((PSW & 0x10) != 0);
-
-	// zero flag (Z) <- ((SP))_6
-	registers->flags.z = ((PSW & 0x40) != 0);
-
-	// sign flag (S) <- ((SP))_7
-	registers->flags.s = ((PSW & 0x80) != 0);
-
-	registers->a = registers->memory[registers->sp + 1];
-	registers->sp += 2;
+	registers->flags.s = (psw >> 7) & 1;
+	registers->flags.z = (psw >> 6) & 1;
+	registers->flags.ac = (psw >> 4) & 1;
+	registers->flags.p = (psw >> 2) & 1;
+	registers->flags.cy= (psw >> 0) & 1;
+	
 }
 void XCHG(Registers *registers)
 {
@@ -303,8 +295,15 @@ void XCHG(Registers *registers)
 
 void XTHL(Registers *registers)
 {
-	registers->l = registers->memory[registers->sp];
-	registers->h = registers->memory[registers->sp + 1];
+	uint16_t tmp = registers->memory[registers->sp + 1] << 8;
+	tmp |= registers->memory[registers->sp];
+
+	registers->memory[registers->sp] = registers->l;
+	registers->memory[registers->sp + 1] = registers->h;
+
+	registers->hl = tmp;
+
+
 }
 
 void UnimplementedInstruction(Registers* registers)
@@ -393,7 +392,8 @@ int Disas_8080_opcode(unsigned char *buffer, int pc)
 			printf("DCR\tD");
 			break;
 		case 0x16:
-			printf("DCR\tD");
+			printf("MVI\tD, $0x%02x", opcode[1]);
+			opbytes = 2;
 			break;
 		case 0x17:
 			printf("RAL");
@@ -1128,9 +1128,11 @@ Registers *Init_8080(void)
         if (registers->memory == NULL)
             return NULL;
 
+		registers->interrupts = 1;
+		registers->pc = 0;
+		registers->sp = 0xf000;
         return registers;
     }
-	registers->interrupts = 1;
     return NULL;
 
 }
@@ -1139,8 +1141,11 @@ uint8_t Emulate8080(Registers *registers)
 {
 	unsigned char tmp[3] = {0}; 
     uint8_t *opcode = &registers->memory[registers->pc];
-    printf("%04x\t", registers->pc);
-    Disas_8080_opcode(registers->memory, registers->pc);
+	if (show_debug)
+	{
+		printf("%04x\t", registers->pc);
+    	Disas_8080_opcode(registers->memory, registers->pc);
+	}
 
     registers->pc+=1;
     switch (*opcode)
@@ -1238,7 +1243,7 @@ uint8_t Emulate8080(Registers *registers)
 			RAR(registers);
 			break;
 		case 0x20:
-			UnimplementedInstruction(registers);
+			/* No instruction */
 			break;
 		case 0x21:
 			LXI(opcode, &registers->hl);
@@ -1288,11 +1293,12 @@ uint8_t Emulate8080(Registers *registers)
 			registers->a = ~(registers->a);
 			break;
 		case 0x30:
-			UnimplementedInstruction(registers);
+			/* No instruction */
+			//UnimplementedInstruction(registers);
 			break;
 		case 0x31:
 			LXI(opcode, &registers->sp);
-			registers->pc++;
+			registers->pc += 2;
 			break;
 		case 0x32:
 			STA(registers, opcode);
@@ -1749,7 +1755,7 @@ uint8_t Emulate8080(Registers *registers)
 			break;
 		case 0xc6:
 			ADD(registers, &opcode[1]);
-			registers->pc += 2;
+			registers->pc++;
 			break;
 		case 0xc7:
 			tmp[1] = 0;
@@ -1776,7 +1782,28 @@ uint8_t Emulate8080(Registers *registers)
 				registers->pc += 2;
 			break;
 		case 0xcd:
-			CALL(registers, opcode);
+			if (5 ==  ((opcode[2] << 8) | opcode[1]))    
+            {    
+                if (registers->c == 9)    
+                {    
+                    uint16_t offset = (registers->d<<8) | (registers->e);    
+                    unsigned char *str = &registers->memory[offset+3];  //skip the prefix bytes    
+                    while (*str != '$')    
+                        printf("%c", *str++);    
+                    printf("\n");    
+                }    
+                else if (registers->c == 2)    
+                {    
+                    //saw this in the inspected code, never saw it called    
+                    printf ("print char routine called\n");    
+                }    
+            }    
+            else if (0 ==  ((opcode[2] << 8) | opcode[1]))    
+            {    
+                exit(0);    
+            }
+			else
+				CALL(registers, opcode);
 			break;
 		case 0xce:
 			ADC(registers, &opcode[1]);
@@ -2000,6 +2027,8 @@ long LoadROM(Registers *registers, const char *filename, uint16_t offset)
     fseek(fp, 0, SEEK_END);
     file_bytes = ftell(fp);
     fseek(fp, 0, SEEK_SET);
+	if (file_bytes > 65536)
+		return -2;
     fread(registers->memory + offset, file_bytes, 1, fp);
     fclose(fp);
 
